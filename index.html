@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Among us like game</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #101522;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 16px 0 8px;
+    }
+
+    #status {
+      margin-bottom: 10px;
+      color: #9ee7ff;
+    }
+
+    canvas {
+      width: min(95vw, 800px);
+      height: auto;
+      border: 3px solid #596579;
+      border-radius: 10px;
+      background: #202b3d;
+      display: block;
+      margin: auto;
+    }
+
+    #controls {
+      margin: 14px auto;
+      display: grid;
+      grid-template-columns: 60px 60px 60px;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    button {
+      height: 50px;
+      font-size: 22px;
+      border: 0;
+      border-radius: 8px;
+      background: #3e8ed0;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:active {
+      background: #24649b;
+    }
+
+    #up {
+      grid-column: 2;
+    }
+
+    #left {
+      grid-column: 1;
+    }
+
+    #down {
+      grid-column: 2;
+    }
+
+    #right {
+      grid-column: 3;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🚀 Space Crew</h1>
+  <div id="status">Connecting...</div>
+
+  <canvas id="game" width="800" height="500"></canvas>
+
+  <div id="controls">
+    <button id="up">▲</button>
+    <button id="left">◀</button>
+    <button id="down">▼</button>
+    <button id="right">▶</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const context = canvas.getContext("2d");
+    const statusText = document.getElementById("status");
+
+    const connectionType =
+      location.protocol === "https:" ? "wss://" : "ws://";
+
+    const socket = new WebSocket(connectionType + location.host);
+
+    let myPlayerId = null;
+    let players = [];
+
+    socket.onopen = () => {
+      statusText.textContent = "Connected ✅";
+    };
+
+    socket.onclose = () => {
+      statusText.textContent = "Disconnected ❌";
+    };
+
+    socket.onerror = () => {
+      statusText.textContent = "Connection error ❌";
+    };
+
+    socket.onmessage = event => {
+      const message = JSON.parse(event.data);
+
+      if (message.type === "welcome") {
+        myPlayerId = message.id;
+      }
+
+      if (message.type === "players") {
+        players = message.players;
+      }
+    };
+
+    function move(direction) {
+      if (socket.readyState !== WebSocket.OPEN) return;
+
+      socket.send(JSON.stringify({
+        type: "move",
+        up: direction === "up",
+        down: direction === "down",
+        left: direction === "left",
+        right: direction === "right"
+      }));
+    }
+
+    document.addEventListener("keydown", event => {
+      const keys = {
+        ArrowUp: "up",
+        w: "up",
+        ArrowDown: "down",
+        s: "down",
+        ArrowLeft: "left",
+        a: "left",
+        ArrowRight: "right",
+        d: "right"
+      };
+
+      const direction = keys[event.key];
+
+      if (direction) {
+        event.preventDefault();
+        move(direction);
+      }
+    });
+
+    document.getElementById("up").onclick = () => move("up");
+    document.getElementById("down").onclick = () => move("down");
+    document.getElementById("left").onclick = () => move("left");
+    document.getElementById("right").onclick = () => move("right");
+
+    function drawPlayer(player) {
+      context.fillStyle = player.color;
+      context.beginPath();
+      context.arc(player.x, player.y, 20, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = "#bcecff";
+      context.beginPath();
+      context.ellipse(
+        player.x + 6,
+        player.y - 7,
+        9,
+        6,
+        0,
+        0,
+        Math.PI * 2
+      );
+      context.fill();
+
+      if (player.id === myPlayerId) {
+        context.strokeStyle = "white";
+        context.lineWidth = 3;
+        context.stroke();
+      }
+    }
+
+    function drawGame() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      context.fillStyle = "#202b3d";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      context.fillStyle = "#ffffff";
+      for (let i = 0; i < 40; i++) {
+        const x = (i * 137) % canvas.width;
+        const y = (i * 83) % canvas.height;
+        context.fillRect(x, y, 2, 2);
+      }
+
+      players.forEach(drawPlayer);
+
+      context.fillStyle = "white";
+      context.font = "16px Arial";
+      context.fillText(`Players online: ${players.length}`, 15, 25);
+
+      requestAnimationFrame(drawGame);
+    }
+
+    drawGame();
+  </script>
+</body>
+</html>
